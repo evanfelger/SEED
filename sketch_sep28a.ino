@@ -1,4 +1,5 @@
 //Code need to be modified to fit the project. (System input and output).
+//#include <cmath>
 
 int counter = 0; //counter variable to track position of knob
 int currentStateA; //tracks the current state of A/CLK
@@ -13,18 +14,20 @@ double radianCount;
 int countsPerRevolution = 320;
 int motorPWM;
 
-double radianCount2;
-double Kp = 2.2472;
-double Ki = .44677;
-double I;
-double e_past;
-double Ts;
+double radianCount2; //radians
+double Kp = 2.2472; // porportion
+double Ki = .44677; // integral number
+double I; 
+double e_past; //last error
+double Ts; 
 double Tc;
 double e;
 double r;
 double y;
 double d;
-double u;
+float u;
+double pi = 3.14159;
+double mod;
 
 void setup() {
 
@@ -54,7 +57,7 @@ void setup() {
   digitalWrite(4, HIGH);
   pinMode(7, OUTPUT); //Motor Voltage Sign
   pinMode(9, OUTPUT); //Motor Voltage
-  Serial.begin(9600);
+  Serial.begin(250000);
 
   digitalWrite(7, LOW);
   
@@ -63,9 +66,11 @@ void setup() {
 void loop() {
 
 
-  r = 3.14;
-  y = radianCount;
-  e = r-y;
+
+
+  r = 0; //target in radians
+  y = radianCount;//fmod(radianCount,pi); //current Position in radians
+  e = r-y; //error in radians
   if (Ts>0){
     d = (e-e_past)/Ts;
     e_past = e;
@@ -74,9 +79,16 @@ void loop() {
     d = 0;
   }
   I = I + Ts*e;
-  u = Kp*e + Ki*I;
-  analogWrite(9, u);
-  Ts = Tc;
+  u = Kp*e + Ki*I; //Voltage output, can be negative
+  //Serial.println(u);
+  if (u<0){
+    analogWrite(7, HIGH);
+  }
+  else{
+    analogWrite(7, LOW);
+  }
+  analogWrite(9, abs(u));
+  Ts = millis()-Tc;
   Tc = millis();
 
 
@@ -131,11 +143,11 @@ void encoderISR(){
         counter--;
       }
       
-      radianCount = ((double)counter/(double)countsPerRevolution)*4*3.14159;
+      radianCount = (((double)counter/(double)countsPerRevolution)*4*pi);
       //radianCount2 = round(radianCount*((Kp/2*s+Ki/2)/(s^2+(4+Kp)/2*s+Ki/2)*100.00)/100.00);
       //Prints out the direction and the relative position of the knob to when the program started.
-      Serial.print(rotaryDirection);
-      Serial.print(" ");
+      //Serial.print(rotaryDirection);
+      //Serial.print(" ");
       Serial.print(radianCount);
       Serial.print("\n");
 
