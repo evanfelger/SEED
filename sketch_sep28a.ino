@@ -8,15 +8,15 @@ int currentStateB; //tracks current state of B/DT
 String rotaryDirection; //string to store the rotation of the knob (CW or CCW). Will be used to print to the serial monitor.
 void encoderISR(); //function prototype for the ISR.
 unsigned long previousMillis = 0; //variable to track previous reading of the millis() function.
-int debounceTime = 1; //debounce time. set to 10 ms.
+int debounceTime = 10; //debounce time. set to 4 ms.
 
 double radianCount;
-int countsPerRevolution = 320;
+int countsPerRevolution = 480; //320
 int motorPWM;
 
 double radianCount2; //radians
-double Kp = 2.2472; // porportion
-double Ki = .44677; // integral number
+double Kp;// = 5;//2.2472; // porportion
+double Ki;// = .84677; // integral number
 double I; 
 double e_past; //last error
 double Ts; 
@@ -25,7 +25,7 @@ double e;
 double r;
 double y;
 double d;
-float u;
+double u;
 double pi = 3.14159;
 double mod;
 
@@ -57,7 +57,7 @@ void setup() {
   digitalWrite(4, HIGH);
   pinMode(7, OUTPUT); //Motor Voltage Sign
   pinMode(9, OUTPUT); //Motor Voltage
-  Serial.begin(250000);
+  Serial.begin(9600);
 
   digitalWrite(7, LOW);
   
@@ -65,14 +65,24 @@ void setup() {
 
 void loop() {
 
+  currentCount = counter;
 
+  if (previousCount != currentCount) {
+    
+    }
+  
 
-
-  r = 0; //target in radians
-  y = radianCount;//fmod(radianCount,pi); //current Position in radians
-  e = r-y; //error in radians
+  
+  Kp = 7;//2.2472; // porportion
+  Ki = 0.01;//.24677; // integral number .44677
+  r = pi; //target in radians
+  e = radianCount-r; //error in radians
+  //Serial.println("error");
+  //Serial.println(180/pi*e);
+  if((e==0)){
+    I = 0;
+  }
   if (Ts>0){
-    d = (e-e_past)/Ts;
     e_past = e;
   }
   else{
@@ -80,20 +90,25 @@ void loop() {
   }
   I = I + Ts*e;
   u = Kp*e + Ki*I; //Voltage output, can be negative
+  //Serial.println("e");
+  //Serial.println(e);
   //Serial.println(u);
   if (u<0){
-    analogWrite(7, HIGH);
+    digitalWrite(7, LOW);
   }
   else{
-    analogWrite(7, LOW);
+    digitalWrite(7, HIGH);
   }
-  analogWrite(9, abs(u));
+  if (abs(u)<.5 && u != 0){
+    u = 1;
+  }
+  if (abs(u)>255){
+    u = 255;
+  }
+  //analogWrite(9, abs(u));
+  
   Ts = millis()-Tc;
   Tc = millis();
-
-
-
-
   
   //for (int motorPWM = 0 ; motorPWM <= 255; motorPWM += 5) {
     
@@ -143,13 +158,13 @@ void encoderISR(){
         counter--;
       }
       
-      radianCount = (((double)counter/(double)countsPerRevolution)*4*pi);
+      radianCount = (((double)counter/(double)countsPerRevolution)*2*pi);
       //radianCount2 = round(radianCount*((Kp/2*s+Ki/2)/(s^2+(4+Kp)/2*s+Ki/2)*100.00)/100.00);
       //Prints out the direction and the relative position of the knob to when the program started.
       //Serial.print(rotaryDirection);
       //Serial.print(" ");
-      Serial.print(radianCount);
-      Serial.print("\n");
+      //Serial.print(counter);
+      //Serial.print("\n");
 
       //store the time in the program where an output was produced. Used for debouncing.
       previousMillis = currentMillis;
