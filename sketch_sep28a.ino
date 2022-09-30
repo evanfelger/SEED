@@ -8,10 +8,10 @@ int currentStateB; //tracks current state of B/DT
 String rotaryDirection; //string to store the rotation of the knob (CW or CCW). Will be used to print to the serial monitor.
 void encoderISR(); //function prototype for the ISR.
 unsigned long previousMillis = 0; //variable to track previous reading of the millis() function.
-int debounceTime = 10; //debounce time. set to 4 ms.
+int debounceTime = 0; //debounce time. set to 4 ms.
 
 double radianCount;
-int countsPerRevolution = 480; //320
+int countsPerRevolution = 1600; //320
 int motorPWM;
 
 double radianCount2; //radians
@@ -28,6 +28,9 @@ double d;
 double u;
 double pi = 3.14159;
 double mod;
+
+int currentCount;
+int previousCount = 0;
 
 void setup() {
 
@@ -65,22 +68,27 @@ void setup() {
 
 void loop() {
 
-  currentCount = counter;
+  
+  //currentCount = counter;
 
-  if (previousCount != currentCount) {
-    
-    }
+  //if (previousCount != currentCount) {
+      //Serial.print(radianCount);
+      //Serial.print("\n");
+      //previousCount = currentCount;
+    //}
   
 
   
-  Kp = 7;//2.2472; // porportion
-  Ki = 0.01;//.24677; // integral number .44677
+  Kp = 4.2472; // porportion
+  Ki = .024677; // integral number .44677
   r = pi; //target in radians
-  e = radianCount-r; //error in radians
+  y = radianCount;
+  e = y-r; //error in radians
   //Serial.println("error");
   //Serial.println(180/pi*e);
-  if((e==0)){
+  if((round(e*1000)==0.00)){
     I = 0;
+    Serial.println("HERE");
   }
   if (Ts>0){
     e_past = e;
@@ -94,10 +102,10 @@ void loop() {
   //Serial.println(e);
   //Serial.println(u);
   if (u<0){
-    digitalWrite(7, LOW);
+    digitalWrite(7, HIGH);
   }
   else{
-    digitalWrite(7, HIGH);
+    digitalWrite(7, LOW);
   }
   if (abs(u)<.5 && u != 0){
     u = 1;
@@ -105,7 +113,7 @@ void loop() {
   if (abs(u)>255){
     u = 255;
   }
-  //analogWrite(9, abs(u));
+  analogWrite(9, abs(u));
   
   Ts = millis()-Tc;
   Tc = millis();
@@ -150,12 +158,12 @@ void encoderISR(){
 
     //condition to check if the knob has turned CW or CWW. count up if CW, count down if CCW.
     if (currentStateA != currentStateB) {
-        rotaryDirection = "CCW";
-        counter++;
+        //rotaryDirection = "CCW";
+        counter--;
       }
     else {
-        rotaryDirection = "CW";
-        counter--;
+        //rotaryDirection = "CW";
+        counter++;
       }
       
       radianCount = (((double)counter/(double)countsPerRevolution)*2*pi);
