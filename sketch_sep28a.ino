@@ -28,6 +28,7 @@ double d;
 double u;
 double pi = 3.14159;
 double mod;
+double pastRadian;
 
 int currentCount;
 int previousCount = 0;
@@ -70,14 +71,14 @@ void loop() {
 
   
   //currentCount = counter;
-
+  
   //if (previousCount != currentCount) {
       //Serial.print(radianCount);
       //Serial.print("\n");
       //previousCount = currentCount;
     //}
-  
-
+  timeNow = millis();
+  pastRadian = radianCount;
   
   Kp = 4.2472; // porportion
   Ki = .024677; // integral number .44677
@@ -138,12 +139,17 @@ void loop() {
 //    digitalWrite(7, LOW);
 //    analogWrite(9, 0);
 //    motorPWM = 0;
-    
-    
+  angularVelocity = (radianCount-pastRadian)/.007 
+  Serial.print("Angular Velocity: ");
+  Serial.print(angularVelocity);
+  Serial.print(" rad/s");
   //}
   //else if (digitalRead(7) == HIGH) {
    // digitalWrite(7, LOW);
   //}
+  while(millis() < timeNow + 7){
+        //wait approx. 7 ms
+    }
   
 }
 
