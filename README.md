@@ -1,1 +1,3 @@
-The purpose of this repository is to share the code our team developed amongst ourselves in order to complete the Mini Project Demonstration for EENG350. 
+The purpose of this repository is to share the code our team developed to complete various projects for EENG350 for Fall 2022.
+
+The repository is organized in folders for each project we complete as a team for this class. Each folder contains the code that was developed for the project's completetion and a corresponding README.md which explains its purpose and organization.
