@@ -56,6 +56,8 @@ double currentRadianCountRIGHT, currentRadianCountLEFT;
 double currentRhoDot, currentPhiDot;
 double currentPhi = 0;
 double currentDistance = 0;
+float distanceInterval;
+float angleInterval;
 
 unsigned long previousMillisRIGHT = 0; //variable to track previous reading of the millis() function.
 unsigned long previousMillisLEFT = 0;
@@ -63,6 +65,8 @@ unsigned long prevMillis = 0;
 
 unsigned long previousMillisAngle;
 unsigned long previousMillisDistance;
+unsigned long currentMillisDistance;
+unsigned long currentMillisAngle;
 
 void encoderISRLEFT(); //function prototype for the ISR.void encoderISR(); //function prototype for the ISR.
 void encoderISRRIGHT();
@@ -73,9 +77,24 @@ double TcRho = millis();
 
 double deltaV;
 
+double Kp = 4.2472; // porportion
+double Ki = .024677; // integral number
+
+double u1;
+double u2;
+double Ts;
+double Tc;
+double I1;
+double I2;
+
+double secIntervalLEFT;
+double secIntervalRIGHT;
+
 
 void setup() {
-  // put your setup code here, to run once:
+  Tc = 0;
+  I1 = 0;
+  I2 = 0;
   pinMode(2, INPUT); //motor 1 CLK or A
   pinMode(5, INPUT); //motor 1 DT or B
   pinMode(3, INPUT); //motor 2 CLK or A
@@ -88,8 +107,8 @@ void setup() {
   pinMode(9, OUTPUT); //Motor 1 Voltage RIGHT
   pinMode(8, OUTPUT); //Motor 2 Voltage Sign  LEFT used to be 7
   pinMode(10, OUTPUT); //Motor 2 Voltage LEFT
-  digitalWrite(7, HIGH);
-  digitalWrite(8, LOW);
+  digitalWrite(7, LOW); //LOW is forward for Motor 1
+  digitalWrite(8, HIGH); //HIGH is forward for Motor 2
   pinMode(13, OUTPUT);
   Serial.begin(250000);
 
@@ -99,17 +118,44 @@ void setup() {
 }
 
 void loop() {
+  
   timeNow = millis();
-  currentCountRIGHT = counterRIGHT;
-  currentRadianRIGHT = radianCountRIGHT;
-  targetAngle = pi/2;
-  targetDistance = 0;
+  targetAngle = 0;
+  targetDistance = 1;
   rho(targetDistance);
-  turn(targetAngle);
-  Va1 = (errorRho + errorPhi)/2;
-  Va2 = (errorRho - errorPhi)/2;
-  analogWrite(9,Va1);
-  analogWrite(10,Va2);
+  //turn(targetAngle);
+  errorPhi = 0;
+  
+  Va1 = (double)((deltaV + errorPhi)/2);
+  Va2 = (double)((deltaV - errorPhi)/2);
+  //Serial.print(deltaV);
+  //Serial.print(" ");
+  //Serial.print(currentPhi);
+  //Serial.print(" ");
+  Serial.print(Va1);
+  Serial.print(" ");
+  Serial.print(Va2);
+  Serial.print(" ");
+  Serial.println(abs((int)(Va1*3)));
+
+  if (Va1 > 0) {
+    digitalWrite(7, LOW); //LOW is forward for Motor 1
+    Serial.println("HIGH");
+  }
+  else if (Va1 < 0) {
+    digitalWrite(7, HIGH); //LOW is forward for Motor 1
+  }
+  if (Va2 > 0) {
+    digitalWrite(8, HIGH); //HIGH is forward for Motor 2
+    Serial.println("HIGH");
+  }
+  else if (Va2 < 0){
+    digitalWrite(8, LOW); //HIGH is forward for Motor 2
+  }
+  analogWrite(9,abs((int)Va1*20));
+  analogWrite(10,abs((int)Va2*20));
+  Ts = millis()-Tc;
+  Tc = millis();
   
 }
 
@@ -123,38 +169,38 @@ void encoderISRRIGHT(){
     
     currentStateBRIGHT = digitalRead(5); //reads in current state of B/DT.
 
-    double secIntervalRIGHT = (double)(currentMillis-previousMillisRIGHT)/1000;
-
-    if (secIntervalRIGHT > 100) {
-      thetaDotRIGHT = 0;
+    secIntervalRIGHT = (double)(currentMillis-previousMillisRIGHT)/((double)1000);
+    if(secIntervalRIGHT != 0){
+      if (secIntervalRIGHT > 100) {
+        thetaDotRIGHT = 0;
+      }
+  
+      //condition to check if the knob has turned CW or CWW. count up if CW, count down if CCW.
+      if (currentStateARIGHT != currentStateBRIGHT) {
+          //rotaryDirection = "CCW";
+          counterRIGHT++;
+          radianCountRIGHT = (((double)counterRIGHT/(double)countsPerRevolution)*2*pi);
+  
+          if (secIntervalRIGHT > 100) {
+            thetaDotRIGHT = 0;
+          }
+          else {
+            thetaDotRIGHT = (double)(radianCountRIGHT-preRadianCountRIGHT)/(double)(secIntervalRIGHT);
+          }
+        }
+      else {
+          //rotaryDirection = "CW";
+          counterRIGHT--;
+          radianCountRIGHT = (((double)counterRIGHT/(double)countsPerRevolution)*2*pi);
+  
+          if (secIntervalRIGHT > 100) {
+            thetaDotRIGHT = 0;
+          }
+          else {
+            thetaDotRIGHT = -1*((double)(radianCountRIGHT-preRadianCountRIGHT)/((double)(secIntervalRIGHT)));
+          }
+        }
     }
-
-    //condition to check if the knob has turned CW or CWW. count up if CW, count down if CCW.
-    if (currentStateARIGHT != currentStateBRIGHT) {
-        //rotaryDirection = "CCW";
-        counterRIGHT++;
-        radianCountRIGHT = (((double)counterRIGHT/(double)countsPerRevolution)*2*pi);
-
-        if (secIntervalRIGHT > 100) {
-          thetaDotRIGHT = 0;
-        }
-        else {
-          thetaDotRIGHT = (radianCountRIGHT-preRadianCountRIGHT)/(secIntervalRIGHT);
-        }
-      }
-    else {
-        //rotaryDirection = "CW";
-        counterRIGHT--;
-        radianCountRIGHT = (((double)counterRIGHT/(double)countsPerRevolution)*2*pi);
-
-        if (secIntervalRIGHT > 100) {
-          thetaDotRIGHT = 0;
-        }
-        else {
-          thetaDotRIGHT = -1*((radianCountRIGHT-preRadianCountRIGHT)/(secIntervalRIGHT));
-        }
-      }
-      
     }
     //store the time in the program where an output was produced. Used for debouncing.
     previousMillisRIGHT = currentMillis;
@@ -165,40 +211,37 @@ void encoderISRRIGHT(){
 void encoderISRLEFT(){
   unsigned long currentMillis = millis(); //tracks the current time in the program in ms. Used for debouncing.
   currentStateALEFT = digitalRead(3); //reads in the current state of A/CLK.
-
-  double secIntervalLEFT = (double)(currentMillis-previousMillisLEFT)/1000;
-
+  secIntervalLEFT = (double)(currentMillis-previousMillisLEFT)/((double)1000);
+  if(secIntervalLEFT != 0){
     if ((currentStateALEFT != previousStateALEFT) && (currentMillis - previousMillisLEFT >= debounceTime)) {
-    
     currentStateBLEFT = digitalRead(6); //reads in current state of B/DT.
-
+    
     //condition to check if the knob has turned CW or CWW. count up if CW, count down if CCW.
     if (currentStateALEFT != currentStateBLEFT) {
         //rotaryDirection = "CCW";
         counterLEFT++;
         radianCountLEFT = (((double)counterLEFT/(double)countsPerRevolution)*2*pi);
-
         if (secIntervalLEFT > 100) {
           thetaDotLEFT = 0;
         }
         else {
-          thetaDotLEFT = (radianCountLEFT-preRadianCountLEFT)/(secIntervalLEFT);
+          thetaDotLEFT = (double)(radianCountLEFT-preRadianCountLEFT)/(double)(secIntervalLEFT);
         }
       }
     else {
         //rotaryDirection = "CW";
         counterLEFT--;
         radianCountLEFT = (((double)counterLEFT/(double)countsPerRevolution)*2*pi);
-
         if (secIntervalLEFT > 100) {
           thetaDotLEFT = 0;
         }
         else {
-          thetaDotLEFT = -1*((radianCountLEFT-preRadianCountLEFT)/(secIntervalLEFT));
+          thetaDotLEFT = -1*((double)(radianCountLEFT-preRadianCountLEFT)/((double)(secIntervalLEFT)));
         }
       }
       
     }
+  }
     //store the time in the program where an output was produced. Used for debouncing.
     previousMillisLEFT = currentMillis;
     preRadianCountLEFT = radianCountLEFT;
@@ -207,27 +250,37 @@ void encoderISRLEFT(){
 
 void turn(double angle){
 
-  unsigned long currentMillisAngle = millis();
-  double angleInterval = (double)(currentMillisAngle - previousMillisAngle)/1000;
-  
-  currentPhiDot = r*(thetaDotRIGHT-thetaDotLEFT)/d;
-  currentPhi = currentPhi + angleInterval*currentPhiDot;
-  errorPhi = currentPhi - angle;
-  if (abs(errorPhi) < .1){
-    errorPhi = 0;
-  }
-
+  currentMillisAngle = millis();
+  angleInterval = (float)(currentMillisAngle - previousMillisAngle);
+    currentPhiDot = r*(thetaDotRIGHT-thetaDotLEFT)/d;
+//    if (currentPhiDot > 20){
+//      currentPhiDot = 20;
+//    }
+//    if (currentPhiDot < -20){
+//      currentPhiDot = -20;
+//    }
+    currentPhi = currentPhi + (double)(angleInterval)*currentPhiDot;
+    errorPhi = angle-currentPhi;
   previousMillisAngle = currentMillisAngle;
 
 }
 void rho(double distance){
   //currentDistance = errorRho*(millis()/1000);
-  unsigned long currentMillisDistance = millis();
-  double distanceInterval = (double)(currentMillisDistance - previousMillisDistance)/1000;
+  currentMillisDistance = millis();
+  distanceInterval = (float)(currentMillisDistance - previousMillisDistance);
   double I = 0;
 
   currentRhoDot = r*(thetaDotRIGHT+thetaDotLEFT)/2;
-  currentDistance = currentDistance + distanceInterval*currentRhoDot;
+//  if (currentRhoDot > 20){
+//    currentRhoDot = 20;
+//  }
+//  if (currentRhoDot < -20){
+//    currentRhoDot = -20;
+//  }
+//  if (isnan(currentRhoDot)){
+//    currentRhoDot = 0;
+//  }
+  currentDistance += ((float)distanceInterval*(float)currentRhoDot)/2;
 
   errorRho = distance - currentDistance;
 
@@ -238,26 +291,11 @@ void rho(double distance){
 
   deltaV = Kp*errorRho + Ki*I;
 
-  if (deltaV<0){
-    digitalWrite(7, HIGH);
-    digitalWrite(8, HIGH);
-  }
-  else{
-    digitalWrite(7, LOW);
-    digitalWrite(8, LOW);
-  }
+  
+  
 
   TsRho = millis()-TcRho;
   TcRho = millis();
   
- 
-  //if (distance >= currentDistance){
-    //targetRho = 5;
-    //currentRho = r*(thetaDotRIGHT+thetaDotLEFT)/2;
-    //errorRho = targetRho - currentRho;
-  //}
-  //else{
-    //errorRho = 0;
-  //}
   previousMillisDistance = currentMillisDistance;
 }
