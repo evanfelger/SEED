@@ -25,8 +25,8 @@ double currentRadianLEFT;
 
 int i = 0;
 
-double r = 0.069; // Radius of the wheel
-double d = .40; // Distance Between Wheels
+double r = 0.07; // Radius of the wheel
+double d = .3993; // Distance Between Wheels
 
 double preRho;
 double prePhi;
@@ -126,11 +126,11 @@ void loop() {
   timeNow = millis();
   if(state1 == 1){
     Serial.println("1");
-    targetAngle = 0;//degrees
-    targetDistance = 100; //mm
+    targetAngle = pi;//radians
+    targetDistance = 60.96; //cm
     rho(targetDistance);
-    turn(targetAngle*2);
-    if(round(currentDistance*100) == 100*100){
+    turn(targetAngle);
+    if(round(errorRho*1000) == 0){
       state1 = 0;
       state2 = 0;
       state3 = 1;
@@ -141,15 +141,12 @@ void loop() {
     Serial.println("2");
     targetAngle = pi;//degrees
     deltaV = 0;
-    //targetDistance = 100;//mm
+    //targetDistance = 76.2;//mm
     //rho(targetDistance);
     turn(targetAngle);
-    Serial.print(errorPhi);
-    Serial.print(" ");
-    Serial.println(Va1);
     if(round(errorPhi*10000) == 0){
-      state1 = 0;
-      state2 = 1;
+      state1 = 1;
+      state2 = 0;
       state3 = 0;
     }
     
@@ -178,7 +175,7 @@ void loop() {
     Va1 = 80;
   }
   if (abs(Va2) > 80){
-    Va2 = 80;
+    Va2 = 82;
   }
   
   analogWrite(9,abs(round(Va1)));
@@ -276,7 +273,7 @@ void encoderISRLEFT(){
 
 void turn(double angle){
   Kp = 2000;
-  Ki = 2;
+  Ki = 5;
   currentMillisAngle = millis();
   angleInterval = (float)(currentMillisAngle - previousMillisAngle)*((double)(.001));
   currentPhiDot = r*(thetaDotRIGHT-thetaDotLEFT)/d; // Radians/sec
