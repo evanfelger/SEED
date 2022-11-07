@@ -6,6 +6,7 @@ import cv2 as cv
 from cv2 import aruco
 import numpy as np
 import math
+import glob
 import smbus
 
 import board
@@ -31,6 +32,7 @@ def writeNumber(value):
 def readNumber():
 
     #number = bus.read_byte(address)
+    
     #number = bus.read_byte_data(address, 0)
     number = [0]
 
@@ -46,13 +48,31 @@ def readNumber():
 # ======================= MAIN =======================
 if __name__ == "__main__":
 
-    num = ["0"] #for arduino
-
-    #TODO: be able to send distance and angle
-    num[0] = 52 #for test angle
-    writeNumber(num) #for test
-
+    angleEx = -.403000001
+    if (angleEx<0):
+        #send 0 first byte
+        angleEx *= -1
+    else:
+        pass
+        #send 1 first byte
+    angleEx = "%.4f" % round(angleEx, 4)
+    angleFIRST = int(angleEx[2]+angleEx[3])
+    angleSECOND = int(angleEx[4]+angleEx[5])
+    print(angleFIRST)
+    #send next
+    print(angleSECOND)
+    #send next
     
+    #TODO: calibrate camera to get matCoef and distCoef
+    #distCoef =
+    #matCoef = 
+        
+    num = ["0"] #for arduino, use writeNumber
+    #BYTES TO SEND:
+    # 1st = 0 or 1 (neg or pos angle)
+    # 2nd = first 2 digits of angle
+    # 3rd = next 2 digits of angle
+    # 4th = distance in cm
     
     # allow the camera to warmup
     time.sleep(0.1)
@@ -80,9 +100,6 @@ if __name__ == "__main__":
         width = cap.get(cv.CAP_PROP_FRAME_WIDTH) # get width and height of video frame
         height = cap.get(cv.CAP_PROP_FRAME_HEIGHT)
 
-        
-
-
         if (ids != None): # if markers detected
 
             aruco.drawDetectedMarkers(frame, corners)
@@ -90,7 +107,7 @@ if __name__ == "__main__":
                 corners = markerCorner.reshape((4,2))
                 (lt, rt, rb, lb) = corners # left top, right top, right bot, left bot corners respectively (pixel coords)
 
-            # GET PIXEL COORDS
+            # GET PIXEL COORDS AND CALC ANGLE
             # camera (0,0) is the top left
             # the pixel coords of center of detected marker is the midpoint between lt and rb:
             pixelCenter = [-1, -1]
@@ -98,17 +115,32 @@ if __name__ == "__main__":
             pixelCenter[1] = (lt[1] + rb[1])/2  #pixelv
             
             # angle is calculated by using the FOV of the camera (57 degrees) over 2, multiplied by the distance between the X coord of the center
-            # of the detected marker over the pixel coords of the center of the marker
-            angleDeg = round((57/2 * (width/2 - pixelCenter[0]) / (width/2)), 2) #rounded to 2 decimal points
+            # of the detected marker over the pixel coords of the center of the marker. - to the right + to the left
+            angleDeg = 57/2 * (width/2 - pixelCenter[0]) / (width/2)
+            
+    
+            # TODO: GET RVEC AND TVEC, AND CALC DISTANCE
+            #rvec, tvec, _ = aruco.estimatePoseSingleMarkers(corners, , matCoef, distCoef)
+            #distance = tvec[2]
+            # TODO: convert distance to CM
+            
+            # SEND ANGLE AND DIST TO ARDUINO
+            if (angleDeg < 0):
+                #TODO: send 0 (angle is neg)
+                angleDeg *= -1
+            else:
+                pass #remove this
+                #TODO: send 1 (angle is pos)
 
-            angleRad = round(math.radians(angleDeg), 2) #radians for arduino
-            angleRad *= 100
-            angleRad = int(angleRad)
+            angleRad = "%.4f" % round(math.radians(angleDeg), 4) #radians for arduino
+            angleRadSECOND = int(angleRad[2]+angleRad[3])
+            angleRadTHIRD = int(angleRad[4]+angleRad[5])
+            #TODO: send angleRadSECOND
+            #TODO: send angleRadTHIRD
 
-            num[0] = angleRad
-            writeNumber(num)    #sends angle to arduino (data[1]) in int format DIVIDE BY 100 to get correct val in arduino code
-        
-
+            #TODO: send distanceCM 
+            
+            #TODO: add handshake between arduino for all sends
 
         #cv.imshow("Video", frame) # display video
         # press q to exit
