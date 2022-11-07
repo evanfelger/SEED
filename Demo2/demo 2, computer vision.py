@@ -47,21 +47,6 @@ def readNumber():
 
 # ======================= MAIN =======================
 if __name__ == "__main__":
-
-    angleEx = -.403000001
-    if (angleEx<0):
-        #send 0 first byte
-        angleEx *= -1
-    else:
-        pass
-        #send 1 first byte
-    angleEx = "%.4f" % round(angleEx, 4)
-    angleFIRST = int(angleEx[2]+angleEx[3])
-    angleSECOND = int(angleEx[4]+angleEx[5])
-    print(angleFIRST)
-    #send next
-    print(angleSECOND)
-    #send next
     
     #TODO: calibrate camera to get matCoef and distCoef
     #distCoef =
