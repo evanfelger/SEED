@@ -105,6 +105,13 @@ int state2 = 0;
 int state3 = 0;
 
 
+//for system integration
+int angleFound = 0;
+double angleInput;
+int distanceFound = 0;
+double DistanceInput;
+
+
 void setup() {
   
   currentDistance = 0;
@@ -123,13 +130,15 @@ void setup() {
   //digitalWrite(7, LOW); //LOW is forward for Motor 1
   //digitalWrite(8, HIGH); //HIGH is forward for Motor 2
   pinMode(13, OUTPUT);
-  Serial.begin(9600);
+  Serial.begin(250000);
 
 
   attachInterrupt(1, encoderISRLEFT, CHANGE); 
   attachInterrupt(0, encoderISRRIGHT, CHANGE); //attach an interrupt to pin 2 (interrupt 0) to call the function encoderISR when any change happens in pin 2.
-  state1 = 0;
-  state2 = 1;
+  state1 = 1;
+  state2 = 0;
+  angleFound = 0;
+  targetAngle = pi/4;
 }
 
 void loop() {
@@ -139,33 +148,58 @@ void loop() {
   Wire.onReceive(receiveData);
   
   timeNow = millis();
+
+
+  
   if(state1 == 1){
+    //degrees
+    deltaV = 0;
+    turn(targetAngle);
+    if(round(errorPhi*100) == 0.00)
+      if(angleFound == 1){
+        state1 = 1;
+        state2 = 1;
+        state3 = 0;
+      }
+      else{
+        targetAngle = targetAngle+(pi/4);
+      }
+    } 
+  }
+
+
+
+  if(state2 == 1){
+    targetAngle = targetAngle + angleInput; //input from pi
+    deltaV = 0;
+    //targetDistance = 76.2;//mm
+    //rho(targetDistance);
+    turn(targetAngle);
+    if(round(errorPhi*100) == 0.0 and distanceFound == 1){
+      state1 = 0;
+      state2 = 0;
+      state3 = 1;
+    }
+  }
+
+
+  
+  if(state3 == 1){
     targetAngle = pi;//radians
-    targetDistance = 60.96; //cm
+    targetDistance = distanceInput; //cm
     rho(targetDistance);
     turn(targetAngle);
     if(round(errorRho*1000) == 0){
       state1 = 0;
       state2 = 0;
-      state3 = 1;
-    }
-    
-  }
-  if(state2 == 1){
-    targetAngle = pi;//degrees
-    deltaV = 0;
-    //targetDistance = 76.2;//mm
-    //rho(targetDistance);
-    turn(targetAngle);
-    if(round(errorPhi*10000) == 0){
-      state1 = 1;
-      state2 = 0;
       state3 = 0;
+      state4 = 1;
     }
     
   }
 
-  if(state3 == 1){
+
+  if(state4 == 1){
     deltaV = 0;
     deltaPhi = 0;
   }
@@ -322,7 +356,7 @@ void rho(double distance){
 }
 
 void receiveData(int byteCount){
-  int i = 0;
+  int i = 4;
   if (Wire.available() != 0){
     while(Wire.available()) {
       data[i] = Wire.read();
