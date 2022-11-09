@@ -79,6 +79,8 @@ unsigned long currentMillisDistance;
 unsigned long currentMillisAngle;
 unsigned long currentMillisLEFT;
 unsigned long currentMillisRIGHT;
+unsigned long pastinterval;
+unsigned long interval;
 
 void encoderISRLEFT(); //function prototype for the ISR.void encoderISR(); //function prototype for the ISR.
 void encoderISRRIGHT();
@@ -105,6 +107,8 @@ int state2 = 0;
 int state3 = 0;
 int state4 = 0;
 
+int marker;
+double pastdistance;
 
 //for system integration
 int angleFound = 0;
@@ -133,7 +137,7 @@ void setup() {
   //digitalWrite(7, LOW); //LOW is forward for Motor 1
   //digitalWrite(8, HIGH); //HIGH is forward for Motor 2
   pinMode(13, OUTPUT);
-  Serial.begin(250000);
+  Serial.begin(9600);
 
 
   attachInterrupt(1, encoderISRLEFT, CHANGE); 
@@ -141,7 +145,9 @@ void setup() {
   state1 = 1;
   state2 = 0;
   angleFound = 0;
-  targetAngle = pi/4;
+  //targetAngle = pi/4;
+  data[0] = 'q';
+  delay(1000);
 }
 
 void loop() {
@@ -156,11 +162,20 @@ void loop() {
 
   
   if(state1 == 1){
+    delay(100);
+    if(data[0] != 'q'){
+      state1 = 0;
+      state2 = 1;
+      state3 = 0;
+    }
     //Serial.print("State 1");
     //degrees
     deltaV = 0;
     turn(targetAngle);
-    if(round(errorPhi*100) == 0.00) {
+    drive();
+    if(round(errorPhi*10) == 0.00) {
+      
+      //Serial.println(data[0]);
       if(data[0] != 'q'){
         state1 = 0;
         state2 = 1;
@@ -174,8 +189,9 @@ void loop() {
         }
       }
       else{
-        targetAngle = targetAngle+(pi/4);
+        targetAngle = targetAngle+(pi/8);
       }
+      
     } 
   }
   
@@ -183,17 +199,28 @@ void loop() {
 
 
   if(state2 == 1){
+    pastinterval = millis();
     //Serial.print("State 2");
     deltaV = 0;
     //targetDistance = 76.2;//mm
     //rho(targetDistance);
-    turn(angleInput + targetAngle);
-    Serial.print(errorPhi);
-    if(round(errorPhi*100) == 0.00){
+    if (data[1] == 0) {
+          angleInput = data[2]*0.01 + data[3]*0.0001;
+        }
+        else if (data[1] == 1) {
+          angleInput = -1*data[2]*0.01 + data[3]*0.0001;
+        }
+    turn(targetAngle - angleInput);
+    drive();
+    //Serial.print(targetAngle - angleInput);
+    //Serial.print(" ");
+    //Serial.println(currentPhi);
+    if((round(errorPhi*1000) == 0.000) and (interval > 1000)){
       state1 = 0;
       state2 = 0;
-      state3 = 1;
+      state3 = 1;  
     }
+    interval += millis()-pastinterval;
   }
 
 
@@ -201,9 +228,26 @@ void loop() {
   if(state3 == 1){
     //Serial.print("State 3");
     //targetAngle = pi;//radians
-    distanceInput = data[4]; //cm
-    rho(targetDistance);
+    //if (distanceFound == 0) {
+      //distanceInput = data[4];
+      //distanceFound = 1;
+     // }
+     if (data[1] == 0) {
+          angleInput = data[2]*0.01 + data[3]*0.0001;
+        }
+        else if (data[1] == 1) {
+          angleInput = -1*data[2]*0.01 + data[3]*0.0001;
+        }
+    turn(targetAngle - angleInput);
+    rho(data[4]);
+    drive();
     //turn(targetAngle);
+    Serial.print(data[4]);
+    Serial.print(" ");
+    Serial.print(errorRho);
+    Serial.print(" ");
+    Serial.println(currentDistance);
+    
     if(round(errorRho*1000) == 0){
       state1 = 0;
       state2 = 0;
@@ -219,30 +263,8 @@ void loop() {
     deltaV = 0;
     deltaPhi = 0;
   }
-  
-  Va1 = (double)((deltaV + deltaPhi)/2);
-  Va2 = (double)((deltaV - deltaPhi)/2);
-  if (Va1 > 0) {
-    digitalWrite(7, LOW); //LOW is forward for Motor 1
-  }
-  else if (Va1 < 0) {
-    digitalWrite(7, HIGH); //LOW is forward for Motor 1
-  }
-  if (Va2 > 0) {
-    digitalWrite(8, HIGH); //HIGH is forward for Motor 2
-  }
-  else if (Va2 < 0){
-    digitalWrite(8, LOW); //HIGH is forward for Motor 2
-  }
-  if (abs(Va1) > 50){
-    Va1 = 50;
-  }
-  if (abs(Va2) > 50){
-    Va2 = 52;
-  }
-  
-  analogWrite(9,abs(round(Va1)));
-  analogWrite(10,abs(round(Va2)));
+
+
 }
 
 void encoderISRRIGHT(){
@@ -335,14 +357,14 @@ void encoderISRLEFT(){
   }
 
 void turn(double angle){
-  Kp = 2000;
-  Ki = 5;
+  Kp = 1000;
+  Ki = 0;
   currentMillisAngle = millis();
   angleInterval = (float)(currentMillisAngle - previousMillisAngle)*((double)(.001));
   currentPhiDot = r*(thetaDotRIGHT-thetaDotLEFT)/d; // Radians/sec
   currentPhi += (double)((double)(angleInterval)*(double)currentPhiDot); // radians
   errorPhi = (angle-currentPhi);//multiplier added (should be in radian magnitudes, 
-  if((round(errorPhi*10)==0.00)){
+  if((round(errorPhi*100000)==0.00)){
     IPhi = 0;
   }
   IPhi = IPhi + TsPhi*errorPhi;
@@ -353,14 +375,26 @@ void turn(double angle){
 
 }
 void rho(double distance){
-  Kp = 10;
-  Ki = 2;
+  Kp = 5;
+  Ki = 0;
   //currentDistance = errorRho*(millis()/1000);
   currentMillisDistance = millis();
   distanceInterval = (float)(currentMillisDistance - previousMillisDistance)/10;
   currentRhoDot = r*(thetaDotRIGHT+thetaDotLEFT)/2;
   currentDistance += (double)((double)distanceInterval*(double)currentRhoDot);
-  errorRho = distance - currentDistance;
+  if(round(distance) == round(pastdistance)){
+    if(marker == 1){
+      Serial.println("here");
+      currentDistance = 0;
+    }
+    errorRho = distance - currentDistance;
+    marker = 0;
+  }
+  else{
+    errorRho = distance;// - currentDistance;
+    marker = 1;
+  }
+  //errorRho = distance - currentDistance;
   if((round(errorRho*10)==0.00)){
     IRho = 0;
   }
@@ -369,6 +403,7 @@ void rho(double distance){
   TsRho = millis()-TcRho;
   TcRho = millis();
   previousMillisDistance = currentMillisDistance;
+  pastdistance = distance;
 }
 
 void receiveData(int byteCount){
@@ -377,8 +412,10 @@ void receiveData(int byteCount){
     while(Wire.available()) {
       data[i] = Wire.read();
       //data[i] = (double)data[i]/(double)100; 
-      //Serial.print(data[i]); 
-      //Serial.print(' ');
+//      Serial.print(i);
+//      Serial.print(" ");
+//      Serial.print(data[i]); 
+//      Serial.print(' ');
       i++;
     
       arraylen++; 
@@ -386,3 +423,30 @@ void receiveData(int byteCount){
   }
   //Serial.print("\n");
 }
+
+
+void drive() {
+  Va1 = (double)((deltaV + deltaPhi)/2);
+  Va2 = (double)((deltaV - deltaPhi)/2);
+  if (Va1 > 0) {
+    digitalWrite(7, LOW); //LOW is forward for Motor 1
+  }
+  else if (Va1 < 0) {
+    digitalWrite(7, HIGH); //LOW is forward for Motor 1
+  }
+  if (Va2 > 0) {
+    digitalWrite(8, HIGH); //HIGH is forward for Motor 2
+  }
+  else if (Va2 < 0){
+    digitalWrite(8, LOW); //HIGH is forward for Motor 2
+  }
+  if (abs(Va1) > 100){
+    Va1 = 100;
+  }
+  if (abs(Va2) > 100){
+    Va2 = 100;
+  }
+  
+  analogWrite(9,abs(round(Va1)));
+  analogWrite(10,abs(round(Va2)));
+  }
