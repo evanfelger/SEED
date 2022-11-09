@@ -4,7 +4,7 @@
 int number0 = 0;
 int number1 = 0;
 int state = 0;
-byte data[32] = {0};
+byte data[32] = {'q'};
 byte storedata[32] = {0};
 int arraylen = 0;
 
@@ -103,13 +103,16 @@ double IPhi = 0;
 int state1 = 1;
 int state2 = 0;
 int state3 = 0;
+int state4 = 0;
 
 
 //for system integration
 int angleFound = 0;
 double angleInput;
 int distanceFound = 0;
-double DistanceInput;
+double distanceInput;
+
+void receiveData(int);
 
 
 void setup() {
@@ -147,35 +150,46 @@ void loop() {
     // define callbacks for i2c communication
   Wire.onReceive(receiveData);
   
+  
   timeNow = millis();
 
 
   
   if(state1 == 1){
+    //Serial.print("State 1");
     //degrees
     deltaV = 0;
     turn(targetAngle);
-    if(round(errorPhi*100) == 0.00)
-      if(angleFound == 1){
-        state1 = 1;
+    if(round(errorPhi*100) == 0.00) {
+      if(data[0] != 'q'){
+        state1 = 0;
         state2 = 1;
         state3 = 0;
+        //currentPhi = 0;
+        if (data[1] == 0) {
+          angleInput = data[2]*0.01 + data[3]*0.0001;
+        }
+        else if (data[1] == 1) {
+          angleInput = -1*data[2]*0.01 + data[3]*0.0001;
+        }
       }
       else{
         targetAngle = targetAngle+(pi/4);
       }
     } 
   }
+  
 
 
 
   if(state2 == 1){
-    targetAngle = targetAngle + angleInput; //input from pi
+    //Serial.print("State 2");
     deltaV = 0;
     //targetDistance = 76.2;//mm
     //rho(targetDistance);
-    turn(targetAngle);
-    if(round(errorPhi*100) == 0.0 and distanceFound == 1){
+    turn(angleInput + targetAngle);
+    Serial.print(errorPhi);
+    if(round(errorPhi*100) == 0.00){
       state1 = 0;
       state2 = 0;
       state3 = 1;
@@ -185,10 +199,11 @@ void loop() {
 
   
   if(state3 == 1){
-    targetAngle = pi;//radians
-    targetDistance = distanceInput; //cm
+    //Serial.print("State 3");
+    //targetAngle = pi;//radians
+    distanceInput = data[4]; //cm
     rho(targetDistance);
-    turn(targetAngle);
+    //turn(targetAngle);
     if(round(errorRho*1000) == 0){
       state1 = 0;
       state2 = 0;
@@ -200,6 +215,7 @@ void loop() {
 
 
   if(state4 == 1){
+    //Serial.print("State 4");
     deltaV = 0;
     deltaPhi = 0;
   }
@@ -218,11 +234,11 @@ void loop() {
   else if (Va2 < 0){
     digitalWrite(8, LOW); //HIGH is forward for Motor 2
   }
-  if (abs(Va1) > 80){
-    Va1 = 80;
+  if (abs(Va1) > 50){
+    Va1 = 50;
   }
-  if (abs(Va2) > 80){
-    Va2 = 82;
+  if (abs(Va2) > 50){
+    Va2 = 52;
   }
   
   analogWrite(9,abs(round(Va1)));
@@ -356,16 +372,17 @@ void rho(double distance){
 }
 
 void receiveData(int byteCount){
-  int i = 4;
-  if (Wire.available() != 0){
+  int i = 0;
+  if ((Wire.available() != 0) && (i < 5)){
     while(Wire.available()) {
       data[i] = Wire.read();
-      data[i] = (double)data[i]/(double)100; 
-      Serial.print(data[i]); 
-      Serial.print(' ');
+      //data[i] = (double)data[i]/(double)100; 
+      //Serial.print(data[i]); 
+      //Serial.print(' ');
       i++;
     
       arraylen++; 
     }
   }
+  //Serial.print("\n");
 }
